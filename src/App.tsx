@@ -31,8 +31,12 @@ type PortalContent = {
 	upcomingEvents: PortalListItem[];
 	fanContents: FanContentItem[];
 };
+type AdminTab = "hero" | "sections" | "updates" | "events" | "contents";
 
 const quickKeywords = ["agumon", "gabumon", "patamon", "tailmon", "guilmon"];
+const ADMIN_ID = "admin";
+const ADMIN_PASSWORD = "dkrnahs9581";
+const ADMIN_SAVED_ID_KEY = "digimon-admin-saved-id";
 const defaultPortalContent: PortalContent = {
 	hero: {
 		eyebrow: "디지몬 소식, 도감, 팬 콘텐츠를 한곳에서",
@@ -130,9 +134,14 @@ const translateDigimonName = (nameMap: DigimonKoNamesMap, id: number | undefined
 
 function App() {
 	const isAdminPage = window.location.pathname.startsWith("/admin");
-	const [adminKey, setAdminKey] = useState("");
-	const [adminJson, setAdminJson] = useState("");
+	const [adminLoginId, setAdminLoginId] = useState("");
+	const [adminLoginPassword, setAdminLoginPassword] = useState("");
+	const [adminRememberId, setAdminRememberId] = useState(false);
+	const [adminAuthenticated, setAdminAuthenticated] = useState(false);
+	const [adminAuthError, setAdminAuthError] = useState("");
 	const [adminStatus, setAdminStatus] = useState("");
+	const [adminTab, setAdminTab] = useState<AdminTab>("hero");
+	const [adminDraft, setAdminDraft] = useState<PortalContent>(defaultPortalContent);
 
 	const [keyword, setKeyword] = useState("agumon");
 	const [digimon, setDigimon] = useState<Digimon | null>(null);
@@ -200,13 +209,25 @@ function App() {
 			try {
 				const content = await getPortalContent();
 				setPortalContent(content);
-				setAdminJson(JSON.stringify(content, null, 2));
+				setAdminDraft(content);
 			} catch {
 				// fallback default content
 			}
 		};
 		void run();
 	}, []);
+
+	useEffect(() => {
+		if (!isAdminPage) {
+			return;
+		}
+
+		const savedId = window.localStorage.getItem(ADMIN_SAVED_ID_KEY);
+		if (savedId) {
+			setAdminLoginId(savedId);
+			setAdminRememberId(true);
+		}
+	}, [isAdminPage]);
 
 	useEffect(() => {
 		const loadNames = async () => {
@@ -254,45 +275,221 @@ function App() {
 	};
 	const handleAdminSave = async () => {
 		try {
-			const parsed = JSON.parse(adminJson) as PortalContent;
 			const response = await fetch("/api/portal-content", {
 				method: "PUT",
 				headers: {
 					"Content-Type": "application/json",
-					"x-admin-key": adminKey,
+					"x-admin-key": ADMIN_PASSWORD,
 				},
-				body: JSON.stringify(parsed),
+				body: JSON.stringify(adminDraft),
 			});
 			if (!response.ok) {
 				const result = (await response.json().catch(() => ({ message: "저장 실패" }))) as { message?: string };
 				throw new Error(result.message || "저장 실패");
 			}
-			setPortalContent(parsed);
+			setPortalContent(adminDraft);
 			setAdminStatus("저장 완료: 팬페이지에 즉시 반영됩니다.");
 		} catch (saveError) {
 			setAdminStatus(saveError instanceof Error ? saveError.message : "저장 중 오류가 발생했습니다.");
 		}
 	};
 
+	const handleAdminLogin = (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+
+		if (adminLoginId === ADMIN_ID && adminLoginPassword === ADMIN_PASSWORD) {
+			setAdminAuthenticated(true);
+			setAdminAuthError("");
+			if (adminRememberId) {
+				window.localStorage.setItem(ADMIN_SAVED_ID_KEY, adminLoginId);
+			} else {
+				window.localStorage.removeItem(ADMIN_SAVED_ID_KEY);
+			}
+			return;
+		}
+
+		setAdminAuthError("아이디 또는 패스워드가 올바르지 않습니다.");
+	};
+
+	const updateHeroField = (field: keyof PortalContent["hero"], value: string) => {
+		setAdminDraft((prev) => ({ ...prev, hero: { ...prev.hero, [field]: value } }));
+	};
+	const updateSection = (index: number, field: keyof PortalNavItem, value: string) => {
+		setAdminDraft((prev) => ({
+			...prev,
+			sections: prev.sections.map((section, idx) =>
+				idx === index ? { ...section, [field]: value } : section,
+			),
+		}));
+	};
+	const updateListItem = (
+		key: "latestUpdates" | "upcomingEvents",
+		index: number,
+		field: keyof PortalListItem,
+		value: string,
+	) => {
+		setAdminDraft((prev) => ({
+			...prev,
+			[key]: prev[key].map((item, idx) => (idx === index ? { ...item, [field]: value } : item)),
+		}));
+	};
+	const updateFanContent = (index: number, field: keyof FanContentItem, value: string) => {
+		setAdminDraft((prev) => ({
+			...prev,
+			fanContents: prev.fanContents.map((item, idx) => (idx === index ? { ...item, [field]: value } : item)),
+		}));
+	};
+	const addSection = () => {
+		setAdminDraft((prev) => ({
+			...prev,
+			sections: [...prev.sections, { id: `section-${Date.now()}`, label: "새 섹션" }],
+		}));
+	};
+	const removeSection = (index: number) => {
+		setAdminDraft((prev) => ({
+			...prev,
+			sections: prev.sections.filter((_, idx) => idx !== index),
+		}));
+	};
+	const addListItem = (key: "latestUpdates" | "upcomingEvents") => {
+		setAdminDraft((prev) => ({
+			...prev,
+			[key]: [...prev[key], { title: "새 항목", date: "2026.01.01" }],
+		}));
+	};
+	const removeListItem = (key: "latestUpdates" | "upcomingEvents", index: number) => {
+		setAdminDraft((prev) => ({
+			...prev,
+			[key]: prev[key].filter((_, idx) => idx !== index),
+		}));
+	};
+	const addFanContent = () => {
+		setAdminDraft((prev) => ({
+			...prev,
+			fanContents: [...prev.fanContents, { title: "새 콘텐츠", description: "설명을 입력하세요." }],
+		}));
+	};
+	const removeFanContent = (index: number) => {
+		setAdminDraft((prev) => ({
+			...prev,
+			fanContents: prev.fanContents.filter((_, idx) => idx !== index),
+		}));
+	};
+
 	if (isAdminPage) {
+		if (!adminAuthenticated) {
+			return (
+				<div className="encyclopedia-page">
+					<section className="portal-card admin-login-panel">
+						<h2>Admin 로그인</h2>
+						<form onSubmit={handleAdminLogin}>
+							<label>
+								아이디
+								<input
+									type="text"
+									value={adminLoginId}
+									onChange={(event) => setAdminLoginId(event.target.value)}
+									autoComplete="username"
+								/>
+							</label>
+							<label>
+								패스워드
+								<input
+									type="password"
+									value={adminLoginPassword}
+									onChange={(event) => setAdminLoginPassword(event.target.value)}
+									autoComplete="current-password"
+								/>
+							</label>
+							<label className="remember-check">
+								<input
+									type="checkbox"
+									checked={adminRememberId}
+									onChange={(event) => setAdminRememberId(event.target.checked)}
+								/>
+								아이디 저장
+							</label>
+							<button type="submit">로그인</button>
+						</form>
+						{adminAuthError ? <p className="status-message status-message--error">{adminAuthError}</p> : null}
+					</section>
+				</div>
+			);
+		}
+
 		return (
 			<div className="encyclopedia-page">
 				<section className="portal-card admin-panel">
 					<h2>Admin - 포털 콘텐츠 관리</h2>
-					<p>JSON을 수정한 뒤 저장하면 백엔드 데이터가 갱신되고, 메인 페이지에 반영됩니다.</p>
-					<label>
-						관리자 키
-						<input
-							type="password"
-							value={adminKey}
-							onChange={(event) => setAdminKey(event.target.value)}
-							placeholder="서버 ADMIN_KEY"
-						/>
-					</label>
-					<label>
-						portal-content
-						<textarea value={adminJson} onChange={(event) => setAdminJson(event.target.value)} rows={22} />
-					</label>
+					<p>섹션별로 항목을 관리한 뒤 저장하면 메인 페이지에 반영됩니다.</p>
+					<div className="admin-tabs">
+						<button type="button" className={adminTab === "hero" ? "is-active" : ""} onClick={() => setAdminTab("hero")}>히어로</button>
+						<button type="button" className={adminTab === "sections" ? "is-active" : ""} onClick={() => setAdminTab("sections")}>섹션 관리</button>
+						<button type="button" className={adminTab === "updates" ? "is-active" : ""} onClick={() => setAdminTab("updates")}>최신 소식</button>
+						<button type="button" className={adminTab === "events" ? "is-active" : ""} onClick={() => setAdminTab("events")}>일정</button>
+						<button type="button" className={adminTab === "contents" ? "is-active" : ""} onClick={() => setAdminTab("contents")}>팬 콘텐츠</button>
+					</div>
+
+					{adminTab === "hero" ? (
+						<div className="admin-edit-group">
+							<label>Eyebrow<input type="text" value={adminDraft.hero.eyebrow} onChange={(event) => updateHeroField("eyebrow", event.target.value)} /></label>
+							<label>타이틀<input type="text" value={adminDraft.hero.title} onChange={(event) => updateHeroField("title", event.target.value)} /></label>
+							<label>설명<textarea rows={4} value={adminDraft.hero.description} onChange={(event) => updateHeroField("description", event.target.value)} /></label>
+						</div>
+					) : null}
+
+					{adminTab === "sections" ? (
+						<div className="admin-edit-list">
+							{adminDraft.sections.map((section, index) => (
+								<div key={`${section.id}-${index}`} className="admin-item-card">
+									<label>id<input type="text" value={section.id} onChange={(event) => updateSection(index, "id", event.target.value)} /></label>
+									<label>라벨<input type="text" value={section.label} onChange={(event) => updateSection(index, "label", event.target.value)} /></label>
+									<button type="button" className="danger" onClick={() => removeSection(index)}>삭제</button>
+								</div>
+							))}
+							<button type="button" onClick={addSection}>섹션 추가</button>
+						</div>
+					) : null}
+
+					{adminTab === "updates" ? (
+						<div className="admin-edit-list">
+							{adminDraft.latestUpdates.map((item, index) => (
+								<div key={`${item.title}-${index}`} className="admin-item-card">
+									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("latestUpdates", index, "title", event.target.value)} /></label>
+									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("latestUpdates", index, "date", event.target.value)} /></label>
+									<button type="button" className="danger" onClick={() => removeListItem("latestUpdates", index)}>삭제</button>
+								</div>
+							))}
+							<button type="button" onClick={() => addListItem("latestUpdates")}>소식 추가</button>
+						</div>
+					) : null}
+
+					{adminTab === "events" ? (
+						<div className="admin-edit-list">
+							{adminDraft.upcomingEvents.map((item, index) => (
+								<div key={`${item.title}-${index}`} className="admin-item-card">
+									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("upcomingEvents", index, "title", event.target.value)} /></label>
+									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("upcomingEvents", index, "date", event.target.value)} /></label>
+									<button type="button" className="danger" onClick={() => removeListItem("upcomingEvents", index)}>삭제</button>
+								</div>
+							))}
+							<button type="button" onClick={() => addListItem("upcomingEvents")}>일정 추가</button>
+						</div>
+					) : null}
+
+					{adminTab === "contents" ? (
+						<div className="admin-edit-list">
+							{adminDraft.fanContents.map((item, index) => (
+								<div key={`${item.title}-${index}`} className="admin-item-card">
+									<label>제목<input type="text" value={item.title} onChange={(event) => updateFanContent(index, "title", event.target.value)} /></label>
+									<label>설명<textarea rows={3} value={item.description} onChange={(event) => updateFanContent(index, "description", event.target.value)} /></label>
+									<button type="button" className="danger" onClick={() => removeFanContent(index)}>삭제</button>
+								</div>
+							))}
+							<button type="button" onClick={addFanContent}>콘텐츠 추가</button>
+						</div>
+					) : null}
+
 					<div className="admin-actions">
 						<button type="button" onClick={handleAdminSave}>
 							저장
