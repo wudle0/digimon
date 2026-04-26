@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import "./App.scss";
+import dictionaryButtonImage from "./assets/img_dictionary.png";
+import goodsmapButtonImage from "./assets/img_goodsmap.png";
+import communityButtonImage from "./assets/img_freeboard.png";
 
 type NamedValue = { id: number; level?: string; type?: string; attribute?: string };
 type ImageValue = { href: string; transparent: boolean };
@@ -1168,12 +1171,27 @@ function App() {
 						) : (
 							<EmptyPosts />
 						)}
-						<div className="portal-hero__actions">
-							<button type="button" onClick={() => navigateTo("/encyclopedia")}>
-								디지몬 도감으로 가기
+						<div className="portal-hero__actions portal-shortcut-cards">
+							<button
+								type="button"
+								className="shortcut-card shortcut-card--dictionary"
+								aria-label="도감으로 이동"
+								onClick={() => navigateTo("/encyclopedia")}>
+								<img src={dictionaryButtonImage} alt="" aria-hidden="true" />
 							</button>
-							<button type="button" onClick={() => navigateTo("/updates")}>
-								최신 소식 보기
+							<button
+								type="button"
+								className="shortcut-card shortcut-card--goods"
+								aria-label="굿즈맵으로 이동"
+								onClick={() => navigateTo("/goods")}>
+								<img src={goodsmapButtonImage} alt="" aria-hidden="true" />
+							</button>
+							<button
+								type="button"
+								className="shortcut-card shortcut-card--community"
+								aria-label="소통게시판으로 이동"
+								onClick={() => navigateTo("/updates")}>
+								<img src={communityButtonImage} alt="" aria-hidden="true" />
 							</button>
 						</div>
 					</section>
