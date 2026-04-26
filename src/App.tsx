@@ -21,19 +21,26 @@ type Digimon = {
 };
 type DigimonKoNamesMap = Record<string, string>;
 type DigimonKoDescriptionsMap = Record<string, string>;
-type PortalNavItem = { id: string; label: string };
 type PortalListItem = { title: string; date: string };
-type FanContentItem = { title: string; description: string };
 type PortalContent = {
 	hero: { eyebrow: string; title: string; description: string };
-	sections: PortalNavItem[];
 	latestUpdates: PortalListItem[];
 	upcomingEvents: PortalListItem[];
-	fanContents: FanContentItem[];
+	goodsUpdates: PortalListItem[];
 };
-type AdminTab = "hero" | "sections" | "updates" | "events" | "contents";
+type AdminTab = "hero" | "updates" | "events" | "goods";
+type AdminListKind = "latestUpdates" | "upcomingEvents" | "goodsUpdates";
+type DeleteTarget = { list: AdminListKind; index: number } | null;
+type DragTarget = { list: AdminListKind; index: number } | null;
 
 const quickKeywords = ["agumon", "gabumon", "patamon", "tailmon", "guilmon"];
+const fixedSections = [
+	{ id: "home", label: "홈" },
+	{ id: "updates", label: "최신 소식" },
+	{ id: "schedule", label: "일정" },
+	{ id: "goods", label: "굿즈 소식" },
+	{ id: "encyclopedia", label: "도감" },
+];
 const ADMIN_ID = "admin";
 const ADMIN_PASSWORD = "dkrnahs9581";
 const ADMIN_SAVED_ID_KEY = "digimon-admin-saved-id";
@@ -42,15 +49,8 @@ const defaultPortalContent: PortalContent = {
 		eyebrow: "디지몬 소식, 도감, 팬 콘텐츠를 한곳에서",
 		title: "한국어 기반 디지몬 통합 허브",
 		description:
-			"이 페이지는 도감만이 아니라, 최신 소식/일정/팬 콘텐츠까지 모아서 보는 종합 팬페이지입니다. 도감은 아래의 한 섹션으로 배치되어 있어요.",
+			"이 페이지는 도감만이 아니라, 최신 소식/일정/굿즈 소식까지 모아서 보는 종합 팬페이지입니다. 도감은 아래의 한 섹션으로 배치되어 있어요.",
 	},
-	sections: [
-		{ id: "home", label: "홈" },
-		{ id: "updates", label: "최신 소식" },
-		{ id: "schedule", label: "일정" },
-		{ id: "encyclopedia", label: "도감" },
-		{ id: "contents", label: "팬 콘텐츠" },
-	],
 	latestUpdates: [
 		{ title: "디지몬 신작 애니메이션 트레일러 공개", date: "2026.04.26" },
 		{ title: "디지몬 카드게임 신규 스타터 덱 발표", date: "2026.04.24" },
@@ -61,10 +61,10 @@ const defaultPortalContent: PortalContent = {
 		{ title: "디지몬 명장면 같이 보기 스트리밍", date: "2026.05.03 21:00" },
 		{ title: "주간 디지몬 카드 입문 라이브", date: "2026.05.05 20:00" },
 	],
-	fanContents: [
-		{ title: "디지몬 입문 가이드", description: "시리즈, 게임, 카드까지 빠르게 정리한 초심자용 가이드" },
-		{ title: "인기 진화 루트 모음", description: "많이 찾는 진화 트리와 추천 포인트 정리" },
-		{ title: "팬아트/코스프레 갤러리", description: "커뮤니티에서 공유하는 창작물 아카이브" },
+	goodsUpdates: [
+		{ title: "디지몬 카드 부스터 신제품 예약 시작", date: "2026.04.28" },
+		{ title: "워그레이몬 피규어 한정판 정보 공개", date: "2026.04.22" },
+		{ title: "디바이스 액세서리 신규 라인업 발표", date: "2026.04.19" },
 	],
 };
 
@@ -110,6 +110,20 @@ const ATTRIBUTE_KO_MAP: Record<string, string> = {
 };
 
 const normalizeKeyword = (value: string) => value.trim().toLowerCase().replace(/\s+/g, "");
+const createRowId = () =>
+	typeof crypto !== "undefined" && "randomUUID" in crypto
+		? crypto.randomUUID()
+		: `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const createRowIds = (length: number) => Array.from({ length }, () => createRowId());
+const reorderItems = <T,>(items: T[], from: number, to: number): T[] => {
+	if (from === to) {
+		return items;
+	}
+	const copied = [...items];
+	const [moved] = copied.splice(from, 1);
+	copied.splice(to, 0, moved);
+	return copied;
+};
 
 const getPortalContent = async (): Promise<PortalContent> => {
 	try {
@@ -142,6 +156,17 @@ function App() {
 	const [adminStatus, setAdminStatus] = useState("");
 	const [adminTab, setAdminTab] = useState<AdminTab>("hero");
 	const [adminDraft, setAdminDraft] = useState<PortalContent>(defaultPortalContent);
+	const [updateRowIds, setUpdateRowIds] = useState<string[]>(
+		createRowIds(defaultPortalContent.latestUpdates.length),
+	);
+	const [eventRowIds, setEventRowIds] = useState<string[]>(
+		createRowIds(defaultPortalContent.upcomingEvents.length),
+	);
+	const [goodsRowIds, setGoodsRowIds] = useState<string[]>(
+		createRowIds(defaultPortalContent.goodsUpdates.length),
+	);
+	const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+	const [dragTarget, setDragTarget] = useState<DragTarget>(null);
 
 	const [keyword, setKeyword] = useState("agumon");
 	const [digimon, setDigimon] = useState<Digimon | null>(null);
@@ -210,6 +235,9 @@ function App() {
 				const content = await getPortalContent();
 				setPortalContent(content);
 				setAdminDraft(content);
+				setUpdateRowIds(createRowIds(content.latestUpdates.length));
+				setEventRowIds(createRowIds(content.upcomingEvents.length));
+				setGoodsRowIds(createRowIds(content.goodsUpdates.length));
 			} catch {
 				// fallback default content
 			}
@@ -314,16 +342,8 @@ function App() {
 	const updateHeroField = (field: keyof PortalContent["hero"], value: string) => {
 		setAdminDraft((prev) => ({ ...prev, hero: { ...prev.hero, [field]: value } }));
 	};
-	const updateSection = (index: number, field: keyof PortalNavItem, value: string) => {
-		setAdminDraft((prev) => ({
-			...prev,
-			sections: prev.sections.map((section, idx) =>
-				idx === index ? { ...section, [field]: value } : section,
-			),
-		}));
-	};
 	const updateListItem = (
-		key: "latestUpdates" | "upcomingEvents",
+		key: "latestUpdates" | "upcomingEvents" | "goodsUpdates",
 		index: number,
 		field: keyof PortalListItem,
 		value: string,
@@ -333,47 +353,94 @@ function App() {
 			[key]: prev[key].map((item, idx) => (idx === index ? { ...item, [field]: value } : item)),
 		}));
 	};
-	const updateFanContent = (index: number, field: keyof FanContentItem, value: string) => {
-		setAdminDraft((prev) => ({
-			...prev,
-			fanContents: prev.fanContents.map((item, idx) => (idx === index ? { ...item, [field]: value } : item)),
-		}));
-	};
-	const addSection = () => {
-		setAdminDraft((prev) => ({
-			...prev,
-			sections: [...prev.sections, { id: `section-${Date.now()}`, label: "새 섹션" }],
-		}));
-	};
-	const removeSection = (index: number) => {
-		setAdminDraft((prev) => ({
-			...prev,
-			sections: prev.sections.filter((_, idx) => idx !== index),
-		}));
-	};
-	const addListItem = (key: "latestUpdates" | "upcomingEvents") => {
+	const addListItem = (key: "latestUpdates" | "upcomingEvents" | "goodsUpdates") => {
 		setAdminDraft((prev) => ({
 			...prev,
 			[key]: [...prev[key], { title: "새 항목", date: "2026.01.01" }],
 		}));
+		if (key === "latestUpdates") {
+			setUpdateRowIds((prev) => [...prev, createRowId()]);
+			return;
+		}
+		if (key === "upcomingEvents") {
+			setEventRowIds((prev) => [...prev, createRowId()]);
+			return;
+		}
+		setGoodsRowIds((prev) => [...prev, createRowId()]);
 	};
-	const removeListItem = (key: "latestUpdates" | "upcomingEvents", index: number) => {
+	const removeListItem = (key: "latestUpdates" | "upcomingEvents" | "goodsUpdates", index: number) => {
 		setAdminDraft((prev) => ({
 			...prev,
 			[key]: prev[key].filter((_, idx) => idx !== index),
 		}));
+		if (key === "latestUpdates") {
+			setUpdateRowIds((prev) => prev.filter((_, idx) => idx !== index));
+			return;
+		}
+		if (key === "upcomingEvents") {
+			setEventRowIds((prev) => prev.filter((_, idx) => idx !== index));
+			return;
+		}
+		setGoodsRowIds((prev) => prev.filter((_, idx) => idx !== index));
 	};
-	const addFanContent = () => {
-		setAdminDraft((prev) => ({
-			...prev,
-			fanContents: [...prev.fanContents, { title: "새 콘텐츠", description: "설명을 입력하세요." }],
-		}));
+
+	const requestDelete = (list: AdminListKind, index: number) => {
+		setDeleteTarget({ list, index });
 	};
-	const removeFanContent = (index: number) => {
-		setAdminDraft((prev) => ({
-			...prev,
-			fanContents: prev.fanContents.filter((_, idx) => idx !== index),
-		}));
+	const confirmDelete = () => {
+		if (!deleteTarget) {
+			return;
+		}
+		if (deleteTarget.list === "latestUpdates") {
+			removeListItem("latestUpdates", deleteTarget.index);
+		} else if (deleteTarget.list === "upcomingEvents") {
+			removeListItem("upcomingEvents", deleteTarget.index);
+		} else {
+			removeListItem("goodsUpdates", deleteTarget.index);
+		}
+		setDeleteTarget(null);
+	};
+	const handleDropReorder = (list: AdminListKind, dropIndex: number) => {
+		if (!dragTarget || dragTarget.list !== list) {
+			return;
+		}
+		const from = dragTarget.index;
+		const to = dropIndex;
+
+		if (list === "latestUpdates") {
+			setAdminDraft((prev) => ({ ...prev, latestUpdates: reorderItems(prev.latestUpdates, from, to) }));
+			setUpdateRowIds((prev) => reorderItems(prev, from, to));
+		} else if (list === "upcomingEvents") {
+			setAdminDraft((prev) => ({ ...prev, upcomingEvents: reorderItems(prev.upcomingEvents, from, to) }));
+			setEventRowIds((prev) => reorderItems(prev, from, to));
+		} else {
+			setAdminDraft((prev) => ({ ...prev, goodsUpdates: reorderItems(prev.goodsUpdates, from, to) }));
+			setGoodsRowIds((prev) => reorderItems(prev, from, to));
+		}
+		setDragTarget(null);
+	};
+	const moveItemByButtons = (list: AdminListKind, index: number, direction: "up" | "down") => {
+		const to = direction === "up" ? index - 1 : index + 1;
+		const length =
+			list === "latestUpdates"
+				? adminDraft.latestUpdates.length
+				: list === "upcomingEvents"
+					? adminDraft.upcomingEvents.length
+					: adminDraft.goodsUpdates.length;
+		if (to < 0 || to >= length) {
+			return;
+		}
+
+		if (list === "latestUpdates") {
+			setAdminDraft((prev) => ({ ...prev, latestUpdates: reorderItems(prev.latestUpdates, index, to) }));
+			setUpdateRowIds((prev) => reorderItems(prev, index, to));
+		} else if (list === "upcomingEvents") {
+			setAdminDraft((prev) => ({ ...prev, upcomingEvents: reorderItems(prev.upcomingEvents, index, to) }));
+			setEventRowIds((prev) => reorderItems(prev, index, to));
+		} else {
+			setAdminDraft((prev) => ({ ...prev, goodsUpdates: reorderItems(prev.goodsUpdates, index, to) }));
+			setGoodsRowIds((prev) => reorderItems(prev, index, to));
+		}
 	};
 
 	if (isAdminPage) {
@@ -424,10 +491,9 @@ function App() {
 					<p>섹션별로 항목을 관리한 뒤 저장하면 메인 페이지에 반영됩니다.</p>
 					<div className="admin-tabs">
 						<button type="button" className={adminTab === "hero" ? "is-active" : ""} onClick={() => setAdminTab("hero")}>히어로</button>
-						<button type="button" className={adminTab === "sections" ? "is-active" : ""} onClick={() => setAdminTab("sections")}>섹션 관리</button>
 						<button type="button" className={adminTab === "updates" ? "is-active" : ""} onClick={() => setAdminTab("updates")}>최신 소식</button>
 						<button type="button" className={adminTab === "events" ? "is-active" : ""} onClick={() => setAdminTab("events")}>일정</button>
-						<button type="button" className={adminTab === "contents" ? "is-active" : ""} onClick={() => setAdminTab("contents")}>팬 콘텐츠</button>
+						<button type="button" className={adminTab === "goods" ? "is-active" : ""} onClick={() => setAdminTab("goods")}>굿즈 소식</button>
 					</div>
 
 					{adminTab === "hero" ? (
@@ -438,26 +504,29 @@ function App() {
 						</div>
 					) : null}
 
-					{adminTab === "sections" ? (
-						<div className="admin-edit-list">
-							{adminDraft.sections.map((section, index) => (
-								<div key={`${section.id}-${index}`} className="admin-item-card">
-									<label>id<input type="text" value={section.id} onChange={(event) => updateSection(index, "id", event.target.value)} /></label>
-									<label>라벨<input type="text" value={section.label} onChange={(event) => updateSection(index, "label", event.target.value)} /></label>
-									<button type="button" className="danger" onClick={() => removeSection(index)}>삭제</button>
-								</div>
-							))}
-							<button type="button" onClick={addSection}>섹션 추가</button>
-						</div>
-					) : null}
-
 					{adminTab === "updates" ? (
 						<div className="admin-edit-list">
 							{adminDraft.latestUpdates.map((item, index) => (
-								<div key={`${item.title}-${index}`} className="admin-item-card">
+								<div
+									key={updateRowIds[index]}
+									className={`admin-item-card ${
+										dragTarget?.list === "latestUpdates" && dragTarget.index === index ? "is-dragging" : ""
+									}`}
+									draggable
+									onDragStart={() => setDragTarget({ list: "latestUpdates", index })}
+									onDragEnd={() => setDragTarget(null)}
+									onDragOver={(event) => event.preventDefault()}
+									onDrop={() => handleDropReorder("latestUpdates", index)}>
+									<div className="drag-tools">
+										<span className="drag-handle">드래그해서 순서 변경</span>
+										<div className="order-buttons">
+											<button type="button" onClick={() => moveItemByButtons("latestUpdates", index, "up")}>위로</button>
+											<button type="button" onClick={() => moveItemByButtons("latestUpdates", index, "down")}>아래로</button>
+										</div>
+									</div>
 									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("latestUpdates", index, "title", event.target.value)} /></label>
 									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("latestUpdates", index, "date", event.target.value)} /></label>
-									<button type="button" className="danger" onClick={() => removeListItem("latestUpdates", index)}>삭제</button>
+									<button type="button" className="danger" onClick={() => requestDelete("latestUpdates", index)}>삭제</button>
 								</div>
 							))}
 							<button type="button" onClick={() => addListItem("latestUpdates")}>소식 추가</button>
@@ -467,26 +536,58 @@ function App() {
 					{adminTab === "events" ? (
 						<div className="admin-edit-list">
 							{adminDraft.upcomingEvents.map((item, index) => (
-								<div key={`${item.title}-${index}`} className="admin-item-card">
+								<div
+									key={eventRowIds[index]}
+									className={`admin-item-card ${
+										dragTarget?.list === "upcomingEvents" && dragTarget.index === index ? "is-dragging" : ""
+									}`}
+									draggable
+									onDragStart={() => setDragTarget({ list: "upcomingEvents", index })}
+									onDragEnd={() => setDragTarget(null)}
+									onDragOver={(event) => event.preventDefault()}
+									onDrop={() => handleDropReorder("upcomingEvents", index)}>
+									<div className="drag-tools">
+										<span className="drag-handle">드래그해서 순서 변경</span>
+										<div className="order-buttons">
+											<button type="button" onClick={() => moveItemByButtons("upcomingEvents", index, "up")}>위로</button>
+											<button type="button" onClick={() => moveItemByButtons("upcomingEvents", index, "down")}>아래로</button>
+										</div>
+									</div>
 									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("upcomingEvents", index, "title", event.target.value)} /></label>
 									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("upcomingEvents", index, "date", event.target.value)} /></label>
-									<button type="button" className="danger" onClick={() => removeListItem("upcomingEvents", index)}>삭제</button>
+									<button type="button" className="danger" onClick={() => requestDelete("upcomingEvents", index)}>삭제</button>
 								</div>
 							))}
 							<button type="button" onClick={() => addListItem("upcomingEvents")}>일정 추가</button>
 						</div>
 					) : null}
 
-					{adminTab === "contents" ? (
+					{adminTab === "goods" ? (
 						<div className="admin-edit-list">
-							{adminDraft.fanContents.map((item, index) => (
-								<div key={`${item.title}-${index}`} className="admin-item-card">
-									<label>제목<input type="text" value={item.title} onChange={(event) => updateFanContent(index, "title", event.target.value)} /></label>
-									<label>설명<textarea rows={3} value={item.description} onChange={(event) => updateFanContent(index, "description", event.target.value)} /></label>
-									<button type="button" className="danger" onClick={() => removeFanContent(index)}>삭제</button>
+							{adminDraft.goodsUpdates.map((item, index) => (
+								<div
+									key={goodsRowIds[index]}
+									className={`admin-item-card ${
+										dragTarget?.list === "goodsUpdates" && dragTarget.index === index ? "is-dragging" : ""
+									}`}
+									draggable
+									onDragStart={() => setDragTarget({ list: "goodsUpdates", index })}
+									onDragEnd={() => setDragTarget(null)}
+									onDragOver={(event) => event.preventDefault()}
+									onDrop={() => handleDropReorder("goodsUpdates", index)}>
+									<div className="drag-tools">
+										<span className="drag-handle">드래그해서 순서 변경</span>
+										<div className="order-buttons">
+											<button type="button" onClick={() => moveItemByButtons("goodsUpdates", index, "up")}>위로</button>
+											<button type="button" onClick={() => moveItemByButtons("goodsUpdates", index, "down")}>아래로</button>
+										</div>
+									</div>
+									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("goodsUpdates", index, "title", event.target.value)} /></label>
+									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("goodsUpdates", index, "date", event.target.value)} /></label>
+									<button type="button" className="danger" onClick={() => requestDelete("goodsUpdates", index)}>삭제</button>
 								</div>
 							))}
-							<button type="button" onClick={addFanContent}>콘텐츠 추가</button>
+							<button type="button" onClick={() => addListItem("goodsUpdates")}>굿즈 소식 추가</button>
 						</div>
 					) : null}
 
@@ -498,6 +599,22 @@ function App() {
 					</div>
 					{adminStatus ? <p className="status-message">{adminStatus}</p> : null}
 				</section>
+				{deleteTarget ? (
+					<div className="delete-modal-backdrop" role="presentation">
+						<div className="delete-modal" role="dialog" aria-modal="true" aria-label="삭제 확인">
+							<h3>항목을 삭제할까요?</h3>
+							<p>삭제한 항목은 저장 후 실제 페이지에 반영됩니다.</p>
+							<div className="delete-modal__actions">
+								<button type="button" className="ghost" onClick={() => setDeleteTarget(null)}>
+									취소
+								</button>
+								<button type="button" className="danger" onClick={confirmDelete}>
+									삭제
+								</button>
+							</div>
+						</div>
+					</div>
+				) : null}
 			</div>
 		);
 	}
@@ -511,7 +628,7 @@ function App() {
 				</div>
 				<nav aria-label="페이지 섹션 이동">
 					<ul>
-						{portalContent.sections.map((section) => (
+						{fixedSections.map((section) => (
 							<li key={section.id}>
 								<button type="button" onClick={() => moveToSection(section.id)}>
 									{section.label}
@@ -561,13 +678,13 @@ function App() {
 				</article>
 			</section>
 
-			<section className="portal-card fan-content-card" id="contents">
-				<h3>팬 콘텐츠</h3>
+			<section className="portal-card fan-content-card" id="goods">
+				<h3>굿즈 소식</h3>
 				<div className="fan-content-grid">
-					{portalContent.fanContents.map((item) => (
-						<div key={item.title}>
+					{portalContent.goodsUpdates.map((item) => (
+						<div key={`${item.title}-${item.date}`}>
 							<h4>{item.title}</h4>
-							<p>{item.description}</p>
+							<p>{item.date}</p>
 						</div>
 					))}
 				</div>

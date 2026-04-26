@@ -148,6 +148,7 @@
 
 .admin-panel {
   margin-top: 16px;
+  box-shadow: 0 12px 30px rgba(15, 47, 87, 0.08);
 
   h2 {
     margin: 0 0 8px;
@@ -352,6 +353,103 @@
     border-radius: 8px;
     padding: 6px 10px;
     cursor: pointer;
+  }
+
+  .drag-handle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    font-size: 0.8rem;
+    color: #5d728f;
+    background: #eef4ff;
+    border-radius: 999px;
+    padding: 4px 10px;
+    cursor: grab;
+    user-select: none;
+  }
+
+  .drag-tools {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .order-buttons {
+    display: flex;
+    gap: 6px;
+
+    button {
+      border: 1px solid #cad7eb;
+      background: #fff;
+      color: #305785;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+  }
+
+  &.is-dragging {
+    border-color: #2a5fa5;
+    box-shadow: 0 0 0 3px rgba(42, 95, 165, 0.12);
+    background: #f2f7ff;
+  }
+}
+
+.delete-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 19, 31, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 999;
+  padding: 16px;
+}
+
+.delete-modal {
+  width: min(420px, 100%);
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #dbe4f3;
+  padding: 18px;
+  box-shadow: 0 20px 40px rgba(12, 22, 36, 0.2);
+
+  h3 {
+    margin: 0 0 8px;
+    color: #102f56;
+  }
+
+  p {
+    margin: 0;
+    color: #526b8b;
+    line-height: 1.5;
+  }
+
+  &__actions {
+    margin-top: 14px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  button {
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .ghost {
+    background: #edf2fb;
+    color: #355c8e;
+  }
+
+  .danger {
+    background: #ca304f;
+    color: #fff;
   }
 }
 

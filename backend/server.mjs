@@ -40,16 +40,13 @@ const validatePortalContent = (payload) => {
 	if (!payload.hero || typeof payload.hero !== "object") {
 		return false;
 	}
-	if (!Array.isArray(payload.sections)) {
-		return false;
-	}
 	if (!Array.isArray(payload.latestUpdates)) {
 		return false;
 	}
 	if (!Array.isArray(payload.upcomingEvents)) {
 		return false;
 	}
-	if (!Array.isArray(payload.fanContents)) {
+	if (!Array.isArray(payload.goodsUpdates)) {
 		return false;
 	}
 	return true;
