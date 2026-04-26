@@ -140,10 +140,44 @@
     font-size: 0.84rem;
     color: #5f7694;
   }
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+
+    h3 {
+      margin: 0;
+    }
+
+    button {
+      border: 1px solid #cad7eb;
+      background: #f8fbff;
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: #255183;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+  }
 }
 
 .fan-content-card {
   margin-top: 14px;
+}
+
+.empty-posts {
+  margin: 0;
+  padding: 14px 12px;
+  border: 1px dashed #cad7eb;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #5f7694;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .admin-panel {
@@ -336,6 +370,19 @@
     font-weight: 600;
   }
 
+  .admin-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+    }
+  }
+
   input,
   textarea {
     border: 1px solid #cad7eb;
@@ -474,6 +521,80 @@
     margin: 0;
     color: #587091;
     line-height: 1.5;
+  }
+}
+
+.list-grid-page {
+  margin-top: 14px;
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+
+    h2 {
+      margin: 0;
+      color: #12365f;
+    }
+
+    button {
+      border: 1px solid #cad7eb;
+      background: #f8fbff;
+      border-radius: 10px;
+      padding: 7px 12px;
+      color: #255183;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  }
+}
+
+.list-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.list-grid-card {
+  border: 1px solid #dbe4f3;
+  border-radius: 14px;
+  background: #fff;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+
+  img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #eef3fb;
+  }
+
+  h3 {
+    margin: 0;
+    color: #123f6e;
+    font-size: 1rem;
+  }
+
+  p {
+    margin: 0;
+    color: #537292;
+    line-height: 1.5;
+  }
+
+  span {
+    font-size: 0.84rem;
+    color: #5c7392;
+  }
+
+  a {
+    justify-self: start;
+    color: #255183;
+    text-decoration: none;
+    font-weight: 600;
   }
 }
 
@@ -720,6 +841,10 @@
   }
 
   .fan-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .list-grid {
     grid-template-columns: 1fr;
   }
 

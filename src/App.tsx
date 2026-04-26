@@ -21,7 +21,14 @@ type Digimon = {
 };
 type DigimonKoNamesMap = Record<string, string>;
 type DigimonKoDescriptionsMap = Record<string, string>;
-type PortalListItem = { title: string; date: string };
+type PortalListItem = {
+	title: string;
+	date: string;
+	summary?: string;
+	imageUrl?: string;
+	link?: string;
+	isPublished?: boolean;
+};
 type PortalContent = {
 	hero: { eyebrow: string; title: string; description: string };
 	latestUpdates: PortalListItem[];
@@ -32,6 +39,7 @@ type AdminTab = "hero" | "updates" | "events" | "goods";
 type AdminListKind = "latestUpdates" | "upcomingEvents" | "goodsUpdates";
 type DeleteTarget = { list: AdminListKind; index: number } | null;
 type DragTarget = { list: AdminListKind; index: number } | null;
+type ListPageKind = "updates" | "schedule" | "goods";
 
 const quickKeywords = ["agumon", "gabumon", "patamon", "tailmon", "guilmon"];
 const fixedSections = [
@@ -46,26 +54,13 @@ const ADMIN_PASSWORD = "dkrnahs9581";
 const ADMIN_SAVED_ID_KEY = "digimon-admin-saved-id";
 const defaultPortalContent: PortalContent = {
 	hero: {
-		eyebrow: "디지몬 소식, 도감, 팬 콘텐츠를 한곳에서",
-		title: "한국어 기반 디지몬 통합 허브",
-		description:
-			"이 페이지는 도감만이 아니라, 최신 소식/일정/굿즈 소식까지 모아서 보는 종합 팬페이지입니다. 도감은 아래의 한 섹션으로 배치되어 있어요.",
+		eyebrow: "",
+		title: "",
+		description: "",
 	},
-	latestUpdates: [
-		{ title: "디지몬 신작 애니메이션 트레일러 공개", date: "2026.04.26" },
-		{ title: "디지몬 카드게임 신규 스타터 덱 발표", date: "2026.04.24" },
-		{ title: "디지몬 게임 업데이트 로드맵 공개", date: "2026.04.20" },
-	],
-	upcomingEvents: [
-		{ title: "팬아트 챌린지 #1", date: "2026.05.01" },
-		{ title: "디지몬 명장면 같이 보기 스트리밍", date: "2026.05.03 21:00" },
-		{ title: "주간 디지몬 카드 입문 라이브", date: "2026.05.05 20:00" },
-	],
-	goodsUpdates: [
-		{ title: "디지몬 카드 부스터 신제품 예약 시작", date: "2026.04.28" },
-		{ title: "워그레이몬 피규어 한정판 정보 공개", date: "2026.04.22" },
-		{ title: "디바이스 액세서리 신규 라인업 발표", date: "2026.04.19" },
-	],
+	latestUpdates: [],
+	upcomingEvents: [],
+	goodsUpdates: [],
 };
 
 const LEVEL_KO_MAP: Record<string, string> = {
@@ -126,28 +121,22 @@ const reorderItems = <T,>(items: T[], from: number, to: number): T[] => {
 };
 
 const getPortalContent = async (): Promise<PortalContent> => {
-	try {
-		const apiResponse = await fetch("/api/portal-content");
-		if (apiResponse.ok) {
-			return (await apiResponse.json()) as PortalContent;
-		}
-	} catch {
-		// backend unavailable; fallback static file
-	}
-	const staticResponse = await fetch("/data/portal-content.json");
-	if (!staticResponse.ok) {
+	const apiResponse = await fetch("/api/portal-content");
+	if (!apiResponse.ok) {
 		throw new Error("포털 데이터를 불러오지 못했습니다.");
 	}
-	return (await staticResponse.json()) as PortalContent;
+	return (await apiResponse.json()) as PortalContent;
 };
 
 const translateLabel = (value: string | undefined, dictionary: Record<string, string>) =>
 	value ? dictionary[value] || value : "-";
 const translateDigimonName = (nameMap: DigimonKoNamesMap, id: number | undefined, value: string | undefined) =>
 	!value ? "-" : !id ? value : nameMap[String(id)] || value;
+const EmptyPosts = () => <p className="empty-posts">등록된 게시글이 없습니다.</p>;
 
 function App() {
 	const isAdminPage = window.location.pathname.startsWith("/admin");
+	const [currentPath, setCurrentPath] = useState(window.location.pathname);
 	const [adminLoginId, setAdminLoginId] = useState("");
 	const [adminLoginPassword, setAdminLoginPassword] = useState("");
 	const [adminRememberId, setAdminRememberId] = useState(false);
@@ -288,9 +277,13 @@ function App() {
 		void loadDescriptions();
 	}, [digimon?.id, koDescriptionMap]);
 
-	const moveToSection = (sectionId: string) => {
-		const target = document.getElementById(sectionId);
-		target?.scrollIntoView({ behavior: "smooth", block: "start" });
+	const navigateTo = (path: string) => {
+		if (window.location.pathname === path) {
+			return;
+		}
+		window.history.pushState({}, "", path);
+		setCurrentPath(path);
+		window.scrollTo({ top: 0, behavior: "smooth" });
 	};
 	const handleEvolutionClick = (id: number) => {
 		setKeyword(String(id));
@@ -346,7 +339,7 @@ function App() {
 		key: "latestUpdates" | "upcomingEvents" | "goodsUpdates",
 		index: number,
 		field: keyof PortalListItem,
-		value: string,
+		value: string | boolean,
 	) => {
 		setAdminDraft((prev) => ({
 			...prev,
@@ -356,7 +349,17 @@ function App() {
 	const addListItem = (key: "latestUpdates" | "upcomingEvents" | "goodsUpdates") => {
 		setAdminDraft((prev) => ({
 			...prev,
-			[key]: [...prev[key], { title: "새 항목", date: "2026.01.01" }],
+			[key]: [
+				...prev[key],
+				{
+					title: "새 항목",
+					date: "2026.01.01",
+					summary: "요약을 입력하세요.",
+					imageUrl: "",
+					link: "",
+					isPublished: true,
+				},
+			],
 		}));
 		if (key === "latestUpdates") {
 			setUpdateRowIds((prev) => [...prev, createRowId()]);
@@ -442,6 +445,22 @@ function App() {
 			setGoodsRowIds((prev) => reorderItems(prev, index, to));
 		}
 	};
+	const getListMeta = (kind: ListPageKind) => {
+		const onlyPublished = (items: PortalListItem[]) => items.filter((item) => item.isPublished !== false);
+		if (kind === "updates") {
+			return { title: "최신 소식", items: onlyPublished(portalContent.latestUpdates) };
+		}
+		if (kind === "schedule") {
+			return { title: "일정", items: onlyPublished(portalContent.upcomingEvents) };
+		}
+		return { title: "굿즈 소식", items: onlyPublished(portalContent.goodsUpdates) };
+	};
+
+	useEffect(() => {
+		const handlePopState = () => setCurrentPath(window.location.pathname);
+		window.addEventListener("popstate", handlePopState);
+		return () => window.removeEventListener("popstate", handlePopState);
+	}, []);
 
 	if (isAdminPage) {
 		if (!adminAuthenticated) {
@@ -526,6 +545,10 @@ function App() {
 									</div>
 									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("latestUpdates", index, "title", event.target.value)} /></label>
 									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("latestUpdates", index, "date", event.target.value)} /></label>
+									<label>요약<textarea rows={2} value={item.summary || ""} onChange={(event) => updateListItem("latestUpdates", index, "summary", event.target.value)} /></label>
+									<label>이미지 URL<input type="text" value={item.imageUrl || ""} onChange={(event) => updateListItem("latestUpdates", index, "imageUrl", event.target.value)} /></label>
+									<label>링크 URL<input type="text" value={item.link || ""} onChange={(event) => updateListItem("latestUpdates", index, "link", event.target.value)} /></label>
+									<label className="admin-checkbox"><input type="checkbox" checked={item.isPublished !== false} onChange={(event) => updateListItem("latestUpdates", index, "isPublished", event.target.checked)} />게시</label>
 									<button type="button" className="danger" onClick={() => requestDelete("latestUpdates", index)}>삭제</button>
 								</div>
 							))}
@@ -555,6 +578,10 @@ function App() {
 									</div>
 									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("upcomingEvents", index, "title", event.target.value)} /></label>
 									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("upcomingEvents", index, "date", event.target.value)} /></label>
+									<label>요약<textarea rows={2} value={item.summary || ""} onChange={(event) => updateListItem("upcomingEvents", index, "summary", event.target.value)} /></label>
+									<label>이미지 URL<input type="text" value={item.imageUrl || ""} onChange={(event) => updateListItem("upcomingEvents", index, "imageUrl", event.target.value)} /></label>
+									<label>링크 URL<input type="text" value={item.link || ""} onChange={(event) => updateListItem("upcomingEvents", index, "link", event.target.value)} /></label>
+									<label className="admin-checkbox"><input type="checkbox" checked={item.isPublished !== false} onChange={(event) => updateListItem("upcomingEvents", index, "isPublished", event.target.checked)} />게시</label>
 									<button type="button" className="danger" onClick={() => requestDelete("upcomingEvents", index)}>삭제</button>
 								</div>
 							))}
@@ -584,6 +611,10 @@ function App() {
 									</div>
 									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("goodsUpdates", index, "title", event.target.value)} /></label>
 									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("goodsUpdates", index, "date", event.target.value)} /></label>
+									<label>요약<textarea rows={2} value={item.summary || ""} onChange={(event) => updateListItem("goodsUpdates", index, "summary", event.target.value)} /></label>
+									<label>이미지 URL<input type="text" value={item.imageUrl || ""} onChange={(event) => updateListItem("goodsUpdates", index, "imageUrl", event.target.value)} /></label>
+									<label>링크 URL<input type="text" value={item.link || ""} onChange={(event) => updateListItem("goodsUpdates", index, "link", event.target.value)} /></label>
+									<label className="admin-checkbox"><input type="checkbox" checked={item.isPublished !== false} onChange={(event) => updateListItem("goodsUpdates", index, "isPublished", event.target.checked)} />게시</label>
 									<button type="button" className="danger" onClick={() => requestDelete("goodsUpdates", index)}>삭제</button>
 								</div>
 							))}
@@ -619,6 +650,13 @@ function App() {
 		);
 	}
 
+	const isEncyclopediaPage = currentPath === "/encyclopedia";
+	const isListPage = currentPath === "/updates" || currentPath === "/schedule" || currentPath === "/goods";
+	const listMeta = isListPage ? getListMeta(currentPath as ListPageKind) : null;
+	const latestPreviewItems = portalContent.latestUpdates.filter((item) => item.isPublished !== false).slice(0, 3);
+	const eventPreviewItems = portalContent.upcomingEvents.filter((item) => item.isPublished !== false).slice(0, 3);
+	const goodsPreviewItems = portalContent.goodsUpdates.filter((item) => item.isPublished !== false).slice(0, 3);
+
 	return (
 		<div className="encyclopedia-page">
 			<header className="global-header">
@@ -630,7 +668,15 @@ function App() {
 					<ul>
 						{fixedSections.map((section) => (
 							<li key={section.id}>
-								<button type="button" onClick={() => moveToSection(section.id)}>
+								<button
+									type="button"
+									onClick={() => {
+										if (section.id === "home") navigateTo("/");
+										else if (section.id === "updates") navigateTo("/updates");
+										else if (section.id === "schedule") navigateTo("/schedule");
+										else if (section.id === "goods") navigateTo("/goods");
+										else navigateTo("/encyclopedia");
+									}}>
 									{section.label}
 								</button>
 							</li>
@@ -639,170 +685,235 @@ function App() {
 				</nav>
 			</header>
 
-			<section className="portal-hero" id="home">
-				<p className="portal-hero__eyebrow">{portalContent.hero.eyebrow}</p>
-				<h2>{portalContent.hero.title}</h2>
-				<p>{portalContent.hero.description}</p>
-				<div className="portal-hero__actions">
-					<button type="button" onClick={() => moveToSection("encyclopedia")}>
-						도감 바로가기
-					</button>
-					<button type="button" onClick={() => moveToSection("updates")}>
-						최신 소식 보기
-					</button>
-				</div>
-			</section>
-
-			<section className="portal-section-grid" id="updates">
-				<article className="portal-card">
-					<h3>최신 소식</h3>
-					<ul>
-						{portalContent.latestUpdates.map((item) => (
-							<li key={`${item.title}-${item.date}`}>
-								<p>{item.title}</p>
-								<span>{item.date}</span>
-							</li>
-						))}
-					</ul>
-				</article>
-				<article className="portal-card" id="schedule">
-					<h3>일정</h3>
-					<ul>
-						{portalContent.upcomingEvents.map((item) => (
-							<li key={`${item.title}-${item.date}`}>
-								<p>{item.title}</p>
-								<span>{item.date}</span>
-							</li>
-						))}
-					</ul>
-				</article>
-			</section>
-
-			<section className="portal-card fan-content-card" id="goods">
-				<h3>굿즈 소식</h3>
-				<div className="fan-content-grid">
-					{portalContent.goodsUpdates.map((item) => (
-						<div key={`${item.title}-${item.date}`}>
-							<h4>{item.title}</h4>
-							<p>{item.date}</p>
-						</div>
-					))}
-				</div>
-			</section>
-
-			<section id="encyclopedia">
-				<header className="top-header">
-					<p className="top-header__eyebrow">DIGIMON ENCYCLOPEDIA</p>
-					<h2>디지몬 도감</h2>
-					<p>Digi API를 기반으로 이름/ID/한글명으로 검색할 수 있어요.</p>
-				</header>
-				<section className="search-panel">
-					<form className="search-form" onSubmit={handleSearch}>
-						<input
-							type="text"
-							value={keyword}
-							onChange={(event) => setKeyword(event.target.value)}
-							placeholder="예: agumon, 1, 아구몬"
-							aria-label="디지몬 이름 또는 ID"
-						/>
-						<button type="submit" disabled={loading}>
-							{loading ? "검색 중..." : "검색"}
+			{isListPage && listMeta ? (
+				<section className="list-grid-page">
+					<div className="list-grid-page__head">
+						<h2>{listMeta.title} 전체보기</h2>
+						<button type="button" onClick={() => navigateTo("/")}>
+							메인으로
 						</button>
-					</form>
-					<div className="quick-buttons">
-						{quickKeywords.map((item) => (
-							<button
-								type="button"
-								key={item}
-								onClick={() => {
-									setKeyword(item);
-									void fetchDigimon(item);
-								}}>
-								{item}
-							</button>
-						))}
+					</div>
+					<div className="list-grid">
+						{listMeta.items.length ? (
+							listMeta.items.map((item, index) => (
+								<article className="list-grid-card" key={`${item.title}-${item.date}-${index}`}>
+									{item.imageUrl ? <img src={item.imageUrl} alt={item.title} loading="lazy" /> : null}
+									<h3>{item.title}</h3>
+									<p>{item.summary || "요약이 아직 등록되지 않았습니다."}</p>
+									<span>{item.date}</span>
+									{item.link ? (
+										<a href={item.link} target="_blank" rel="noreferrer">
+											자세히 보기
+										</a>
+									) : null}
+								</article>
+							))
+						) : (
+							<EmptyPosts />
+						)}
 					</div>
 				</section>
-				{error ? <p className="status-message status-message--error">{error}</p> : null}
-				{loading ? <p className="status-message">데이터를 불러오는 중입니다...</p> : null}
-			</section>
+			) : null}
 
-			{digimon ? (
-				<main className="detail-grid">
-					<article className="card card--profile">
-						<div className="card__head">
-							<h2>
-								#{digimon.id} {translateDigimonName(koNamesMap, digimon.id, digimon.name)}
-							</h2>
-							{digimon.xAntibody ? <span className="badge">X-Antibody</span> : null}
-						</div>
-						<div className="profile-body">
-							{mainImage ? <img src={mainImage} alt={digimon.name} /> : null}
-							<div>
-								<ul className="meta-list">
-									<li>
-										<strong>레벨</strong>
-										<span>{digimon.levels.map((item) => translateLabel(item.level, LEVEL_KO_MAP)).join(", ") || "-"}</span>
-									</li>
-									<li>
-										<strong>타입</strong>
-										<span>{digimon.types.map((item) => translateLabel(item.type, TYPE_KO_MAP)).join(", ") || "-"}</span>
-									</li>
-									<li>
-										<strong>속성</strong>
-										<span>{digimon.attributes.map((item) => translateLabel(item.attribute, ATTRIBUTE_KO_MAP)).join(", ") || "-"}</span>
-									</li>
-									<li>
-										<strong>첫 등장</strong>
-										<span>{digimon.releaseDate || "-"}</span>
-									</li>
-								</ul>
+			{isEncyclopediaPage ? (
+				<>
+					<section id="encyclopedia">
+						<header className="top-header">
+							<p className="top-header__eyebrow">DIGIMON ENCYCLOPEDIA</p>
+							<h2>디지몬 도감</h2>
+							<p>Digi API를 기반으로 이름/ID/한글명으로 검색할 수 있어요.</p>
+						</header>
+						<section className="search-panel">
+							<form className="search-form" onSubmit={handleSearch}>
+								<input
+									type="text"
+									value={keyword}
+									onChange={(event) => setKeyword(event.target.value)}
+									placeholder="예: agumon, 1, 아구몬"
+									aria-label="디지몬 이름 또는 ID"
+								/>
+								<button type="submit" disabled={loading}>
+									{loading ? "검색 중..." : "검색"}
+								</button>
+							</form>
+							<div className="quick-buttons">
+								{quickKeywords.map((item) => (
+									<button
+										type="button"
+										key={item}
+										onClick={() => {
+											setKeyword(item);
+											void fetchDigimon(item);
+										}}>
+										{item}
+									</button>
+								))}
 							</div>
+						</section>
+						{error ? <p className="status-message status-message--error">{error}</p> : null}
+						{loading ? <p className="status-message">데이터를 불러오는 중입니다...</p> : null}
+					</section>
+
+					{digimon ? (
+						<main className="detail-grid">
+							<article className="card card--profile">
+								<div className="card__head">
+									<h2>
+										#{digimon.id} {translateDigimonName(koNamesMap, digimon.id, digimon.name)}
+									</h2>
+									{digimon.xAntibody ? <span className="badge">X-Antibody</span> : null}
+								</div>
+								<div className="profile-body">
+									{mainImage ? <img src={mainImage} alt={digimon.name} /> : null}
+									<div>
+										<ul className="meta-list">
+											<li>
+												<strong>레벨</strong>
+												<span>{digimon.levels.map((item) => translateLabel(item.level, LEVEL_KO_MAP)).join(", ") || "-"}</span>
+											</li>
+											<li>
+												<strong>타입</strong>
+												<span>{digimon.types.map((item) => translateLabel(item.type, TYPE_KO_MAP)).join(", ") || "-"}</span>
+											</li>
+											<li>
+												<strong>속성</strong>
+												<span>{digimon.attributes.map((item) => translateLabel(item.attribute, ATTRIBUTE_KO_MAP)).join(", ") || "-"}</span>
+											</li>
+											<li>
+												<strong>첫 등장</strong>
+												<span>{digimon.releaseDate || "-"}</span>
+											</li>
+										</ul>
+									</div>
+								</div>
+							</article>
+							<article className="card">
+								<h3>설명</h3>
+								<p>{translatedDescription || "설명 데이터가 없습니다."}</p>
+							</article>
+							<article className="card">
+								<h3>이전 진화</h3>
+								<ul className="evolution-list">
+									{digimon.priorEvolutions?.length ? (
+										digimon.priorEvolutions.slice(0, 8).map((item) => (
+											<li key={`${item.id}-${item.digimon}`}>
+												<img src={item.image} alt={translateDigimonName(koNamesMap, item.id, item.digimon)} loading="lazy" />
+												<div>
+													<button type="button" onClick={() => handleEvolutionClick(item.id)}>
+														{translateDigimonName(koNamesMap, item.id, item.digimon)}
+													</button>
+												</div>
+											</li>
+										))
+									) : (
+										<li className="evolution-list__empty">이전 진화 정보가 없습니다.</li>
+									)}
+								</ul>
+							</article>
+							<article className="card">
+								<h3>다음 진화</h3>
+								<ul className="evolution-list">
+									{digimon.nextEvolutions?.length ? (
+										digimon.nextEvolutions.slice(0, 8).map((item) => (
+											<li key={`${item.id}-${item.digimon}`}>
+												<img src={item.image} alt={translateDigimonName(koNamesMap, item.id, item.digimon)} loading="lazy" />
+												<div>
+													<button type="button" onClick={() => handleEvolutionClick(item.id)}>
+														{translateDigimonName(koNamesMap, item.id, item.digimon)}
+													</button>
+												</div>
+											</li>
+										))
+									) : (
+										<li className="evolution-list__empty">다음 진화 정보가 없습니다.</li>
+									)}
+								</ul>
+							</article>
+						</main>
+					) : null}
+				</>
+			) : null}
+
+			{!isListPage && !isEncyclopediaPage ? (
+				<>
+					<section className="portal-hero" id="home">
+						{portalContent.hero.eyebrow || portalContent.hero.title || portalContent.hero.description ? (
+							<>
+								<p className="portal-hero__eyebrow">{portalContent.hero.eyebrow}</p>
+								<h2>{portalContent.hero.title}</h2>
+								<p>{portalContent.hero.description}</p>
+							</>
+						) : (
+							<EmptyPosts />
+						)}
+						<div className="portal-hero__actions">
+							<button type="button" onClick={() => navigateTo("/encyclopedia")}>
+								디지몬 도감으로 가기
+							</button>
+							<button type="button" onClick={() => navigateTo("/updates")}>
+								최신 소식 보기
+							</button>
 						</div>
-					</article>
-					<article className="card">
-						<h3>설명</h3>
-						<p>{translatedDescription || "설명 데이터가 없습니다."}</p>
-					</article>
-					<article className="card">
-						<h3>이전 진화</h3>
-						<ul className="evolution-list">
-							{digimon.priorEvolutions?.length ? (
-								digimon.priorEvolutions.slice(0, 8).map((item) => (
-									<li key={`${item.id}-${item.digimon}`}>
-										<img src={item.image} alt={translateDigimonName(koNamesMap, item.id, item.digimon)} loading="lazy" />
-										<div>
-											<button type="button" onClick={() => handleEvolutionClick(item.id)}>
-												{translateDigimonName(koNamesMap, item.id, item.digimon)}
-											</button>
-										</div>
-									</li>
-								))
+					</section>
+
+					<section className="portal-section-grid">
+						<article className="portal-card">
+							<div className="portal-card__head">
+								<h3>최신 소식</h3>
+								<button type="button" onClick={() => navigateTo("/updates")}>전체보기</button>
+							</div>
+							{latestPreviewItems.length ? (
+								<ul>
+									{latestPreviewItems.map((item, index) => (
+										<li key={`${item.title}-${item.date}-${index}`}>
+											<p>{item.title}</p>
+											<span>{item.date}</span>
+										</li>
+									))}
+								</ul>
 							) : (
-								<li className="evolution-list__empty">이전 진화 정보가 없습니다.</li>
+								<EmptyPosts />
 							)}
-						</ul>
-					</article>
-					<article className="card">
-						<h3>다음 진화</h3>
-						<ul className="evolution-list">
-							{digimon.nextEvolutions?.length ? (
-								digimon.nextEvolutions.slice(0, 8).map((item) => (
-									<li key={`${item.id}-${item.digimon}`}>
-										<img src={item.image} alt={translateDigimonName(koNamesMap, item.id, item.digimon)} loading="lazy" />
-										<div>
-											<button type="button" onClick={() => handleEvolutionClick(item.id)}>
-												{translateDigimonName(koNamesMap, item.id, item.digimon)}
-											</button>
-										</div>
-									</li>
-								))
+						</article>
+						<article className="portal-card">
+							<div className="portal-card__head">
+								<h3>일정</h3>
+								<button type="button" onClick={() => navigateTo("/schedule")}>전체보기</button>
+							</div>
+							{eventPreviewItems.length ? (
+								<ul>
+									{eventPreviewItems.map((item, index) => (
+										<li key={`${item.title}-${item.date}-${index}`}>
+											<p>{item.title}</p>
+											<span>{item.date}</span>
+										</li>
+									))}
+								</ul>
 							) : (
-								<li className="evolution-list__empty">다음 진화 정보가 없습니다.</li>
+								<EmptyPosts />
 							)}
-						</ul>
-					</article>
-				</main>
+						</article>
+					</section>
+
+					<section className="portal-card fan-content-card">
+						<div className="portal-card__head">
+							<h3>굿즈 소식</h3>
+							<button type="button" onClick={() => navigateTo("/goods")}>전체보기</button>
+						</div>
+						{goodsPreviewItems.length ? (
+							<div className="fan-content-grid">
+								{goodsPreviewItems.map((item, index) => (
+									<div key={`${item.title}-${item.date}-${index}`}>
+										<h4>{item.title}</h4>
+										<p>{item.date}</p>
+									</div>
+								))}
+							</div>
+						) : (
+							<EmptyPosts />
+						)}
+					</section>
+				</>
 			) : null}
 		</div>
 	);
