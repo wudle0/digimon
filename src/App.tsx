@@ -130,8 +130,11 @@ const getPortalContent = async (): Promise<PortalContent> => {
 
 const translateLabel = (value: string | undefined, dictionary: Record<string, string>) =>
 	value ? dictionary[value] || value : "-";
-const translateDigimonName = (nameMap: DigimonKoNamesMap, id: number | undefined, value: string | undefined) =>
-	!value ? "-" : !id ? value : nameMap[String(id)] || value;
+const translateDigimonName = (
+	nameMap: DigimonKoNamesMap,
+	id: number | undefined,
+	value: string | undefined,
+) => (!value ? "-" : !id ? value : nameMap[String(id)] || value);
 const EmptyPosts = () => <p className="empty-posts">등록된 게시글이 없습니다.</p>;
 
 function App() {
@@ -166,7 +169,10 @@ function App() {
 	const [error, setError] = useState("");
 
 	const koNameLookupMap = useMemo(
-		() => Object.fromEntries(Object.entries(koNamesMap).map(([id, name]) => [normalizeKeyword(name), id])),
+		() =>
+			Object.fromEntries(
+				Object.entries(koNamesMap).map(([id, name]) => [normalizeKeyword(name), id]),
+			),
 		[koNamesMap],
 	);
 	const mainImage = digimon?.images?.[0]?.href;
@@ -297,7 +303,7 @@ function App() {
 	const handleAdminSave = async () => {
 		try {
 			const response = await fetch("/api/portal-content", {
-				method: "PUT",
+				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					"x-admin-key": ADMIN_PASSWORD,
@@ -305,13 +311,17 @@ function App() {
 				body: JSON.stringify(adminDraft),
 			});
 			if (!response.ok) {
-				const result = (await response.json().catch(() => ({ message: "저장 실패" }))) as { message?: string };
+				const result = (await response.json().catch(() => ({ message: "저장 실패" }))) as {
+					message?: string;
+				};
 				throw new Error(result.message || "저장 실패");
 			}
 			setPortalContent(adminDraft);
 			setAdminStatus("저장 완료: 팬페이지에 즉시 반영됩니다.");
 		} catch (saveError) {
-			setAdminStatus(saveError instanceof Error ? saveError.message : "저장 중 오류가 발생했습니다.");
+			setAdminStatus(
+				saveError instanceof Error ? saveError.message : "저장 중 오류가 발생했습니다.",
+			);
 		}
 	};
 
@@ -371,7 +381,10 @@ function App() {
 		}
 		setGoodsRowIds((prev) => [...prev, createRowId()]);
 	};
-	const removeListItem = (key: "latestUpdates" | "upcomingEvents" | "goodsUpdates", index: number) => {
+	const removeListItem = (
+		key: "latestUpdates" | "upcomingEvents" | "goodsUpdates",
+		index: number,
+	) => {
 		setAdminDraft((prev) => ({
 			...prev,
 			[key]: prev[key].filter((_, idx) => idx !== index),
@@ -411,13 +424,22 @@ function App() {
 		const to = dropIndex;
 
 		if (list === "latestUpdates") {
-			setAdminDraft((prev) => ({ ...prev, latestUpdates: reorderItems(prev.latestUpdates, from, to) }));
+			setAdminDraft((prev) => ({
+				...prev,
+				latestUpdates: reorderItems(prev.latestUpdates, from, to),
+			}));
 			setUpdateRowIds((prev) => reorderItems(prev, from, to));
 		} else if (list === "upcomingEvents") {
-			setAdminDraft((prev) => ({ ...prev, upcomingEvents: reorderItems(prev.upcomingEvents, from, to) }));
+			setAdminDraft((prev) => ({
+				...prev,
+				upcomingEvents: reorderItems(prev.upcomingEvents, from, to),
+			}));
 			setEventRowIds((prev) => reorderItems(prev, from, to));
 		} else {
-			setAdminDraft((prev) => ({ ...prev, goodsUpdates: reorderItems(prev.goodsUpdates, from, to) }));
+			setAdminDraft((prev) => ({
+				...prev,
+				goodsUpdates: reorderItems(prev.goodsUpdates, from, to),
+			}));
 			setGoodsRowIds((prev) => reorderItems(prev, from, to));
 		}
 		setDragTarget(null);
@@ -435,18 +457,28 @@ function App() {
 		}
 
 		if (list === "latestUpdates") {
-			setAdminDraft((prev) => ({ ...prev, latestUpdates: reorderItems(prev.latestUpdates, index, to) }));
+			setAdminDraft((prev) => ({
+				...prev,
+				latestUpdates: reorderItems(prev.latestUpdates, index, to),
+			}));
 			setUpdateRowIds((prev) => reorderItems(prev, index, to));
 		} else if (list === "upcomingEvents") {
-			setAdminDraft((prev) => ({ ...prev, upcomingEvents: reorderItems(prev.upcomingEvents, index, to) }));
+			setAdminDraft((prev) => ({
+				...prev,
+				upcomingEvents: reorderItems(prev.upcomingEvents, index, to),
+			}));
 			setEventRowIds((prev) => reorderItems(prev, index, to));
 		} else {
-			setAdminDraft((prev) => ({ ...prev, goodsUpdates: reorderItems(prev.goodsUpdates, index, to) }));
+			setAdminDraft((prev) => ({
+				...prev,
+				goodsUpdates: reorderItems(prev.goodsUpdates, index, to),
+			}));
 			setGoodsRowIds((prev) => reorderItems(prev, index, to));
 		}
 	};
 	const getListMeta = (kind: ListPageKind) => {
-		const onlyPublished = (items: PortalListItem[]) => items.filter((item) => item.isPublished !== false);
+		const onlyPublished = (items: PortalListItem[]) =>
+			items.filter((item) => item.isPublished !== false);
 		if (kind === "updates") {
 			return { title: "최신 소식", items: onlyPublished(portalContent.latestUpdates) };
 		}
@@ -497,7 +529,9 @@ function App() {
 							</label>
 							<button type="submit">로그인</button>
 						</form>
-						{adminAuthError ? <p className="status-message status-message--error">{adminAuthError}</p> : null}
+						{adminAuthError ? (
+							<p className="status-message status-message--error">{adminAuthError}</p>
+						) : null}
 					</section>
 				</div>
 			);
@@ -509,17 +543,58 @@ function App() {
 					<h2>Admin - 포털 콘텐츠 관리</h2>
 					<p>섹션별로 항목을 관리한 뒤 저장하면 메인 페이지에 반영됩니다.</p>
 					<div className="admin-tabs">
-						<button type="button" className={adminTab === "hero" ? "is-active" : ""} onClick={() => setAdminTab("hero")}>히어로</button>
-						<button type="button" className={adminTab === "updates" ? "is-active" : ""} onClick={() => setAdminTab("updates")}>최신 소식</button>
-						<button type="button" className={adminTab === "events" ? "is-active" : ""} onClick={() => setAdminTab("events")}>일정</button>
-						<button type="button" className={adminTab === "goods" ? "is-active" : ""} onClick={() => setAdminTab("goods")}>굿즈 소식</button>
+						<button
+							type="button"
+							className={adminTab === "hero" ? "is-active" : ""}
+							onClick={() => setAdminTab("hero")}>
+							히어로
+						</button>
+						<button
+							type="button"
+							className={adminTab === "updates" ? "is-active" : ""}
+							onClick={() => setAdminTab("updates")}>
+							최신 소식
+						</button>
+						<button
+							type="button"
+							className={adminTab === "events" ? "is-active" : ""}
+							onClick={() => setAdminTab("events")}>
+							일정
+						</button>
+						<button
+							type="button"
+							className={adminTab === "goods" ? "is-active" : ""}
+							onClick={() => setAdminTab("goods")}>
+							굿즈 소식
+						</button>
 					</div>
 
 					{adminTab === "hero" ? (
 						<div className="admin-edit-group">
-							<label>Eyebrow<input type="text" value={adminDraft.hero.eyebrow} onChange={(event) => updateHeroField("eyebrow", event.target.value)} /></label>
-							<label>타이틀<input type="text" value={adminDraft.hero.title} onChange={(event) => updateHeroField("title", event.target.value)} /></label>
-							<label>설명<textarea rows={4} value={adminDraft.hero.description} onChange={(event) => updateHeroField("description", event.target.value)} /></label>
+							<label>
+								Eyebrow
+								<input
+									type="text"
+									value={adminDraft.hero.eyebrow}
+									onChange={(event) => updateHeroField("eyebrow", event.target.value)}
+								/>
+							</label>
+							<label>
+								타이틀
+								<input
+									type="text"
+									value={adminDraft.hero.title}
+									onChange={(event) => updateHeroField("title", event.target.value)}
+								/>
+							</label>
+							<label>
+								설명
+								<textarea
+									rows={4}
+									value={adminDraft.hero.description}
+									onChange={(event) => updateHeroField("description", event.target.value)}
+								/>
+							</label>
 						</div>
 					) : null}
 
@@ -529,7 +604,9 @@ function App() {
 								<div
 									key={updateRowIds[index]}
 									className={`admin-item-card ${
-										dragTarget?.list === "latestUpdates" && dragTarget.index === index ? "is-dragging" : ""
+										dragTarget?.list === "latestUpdates" && dragTarget.index === index
+											? "is-dragging"
+											: ""
 									}`}
 									draggable
 									onDragStart={() => setDragTarget({ list: "latestUpdates", index })}
@@ -539,20 +616,89 @@ function App() {
 									<div className="drag-tools">
 										<span className="drag-handle">드래그해서 순서 변경</span>
 										<div className="order-buttons">
-											<button type="button" onClick={() => moveItemByButtons("latestUpdates", index, "up")}>위로</button>
-											<button type="button" onClick={() => moveItemByButtons("latestUpdates", index, "down")}>아래로</button>
+											<button
+												type="button"
+												onClick={() => moveItemByButtons("latestUpdates", index, "up")}>
+												위로
+											</button>
+											<button
+												type="button"
+												onClick={() => moveItemByButtons("latestUpdates", index, "down")}>
+												아래로
+											</button>
 										</div>
 									</div>
-									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("latestUpdates", index, "title", event.target.value)} /></label>
-									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("latestUpdates", index, "date", event.target.value)} /></label>
-									<label>요약<textarea rows={2} value={item.summary || ""} onChange={(event) => updateListItem("latestUpdates", index, "summary", event.target.value)} /></label>
-									<label>이미지 URL<input type="text" value={item.imageUrl || ""} onChange={(event) => updateListItem("latestUpdates", index, "imageUrl", event.target.value)} /></label>
-									<label>링크 URL<input type="text" value={item.link || ""} onChange={(event) => updateListItem("latestUpdates", index, "link", event.target.value)} /></label>
-									<label className="admin-checkbox"><input type="checkbox" checked={item.isPublished !== false} onChange={(event) => updateListItem("latestUpdates", index, "isPublished", event.target.checked)} />게시</label>
-									<button type="button" className="danger" onClick={() => requestDelete("latestUpdates", index)}>삭제</button>
+									<label>
+										제목
+										<input
+											type="text"
+											value={item.title}
+											onChange={(event) =>
+												updateListItem("latestUpdates", index, "title", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										날짜
+										<input
+											type="text"
+											value={item.date}
+											onChange={(event) =>
+												updateListItem("latestUpdates", index, "date", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										요약
+										<textarea
+											rows={2}
+											value={item.summary || ""}
+											onChange={(event) =>
+												updateListItem("latestUpdates", index, "summary", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										이미지 URL
+										<input
+											type="text"
+											value={item.imageUrl || ""}
+											onChange={(event) =>
+												updateListItem("latestUpdates", index, "imageUrl", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										링크 URL
+										<input
+											type="text"
+											value={item.link || ""}
+											onChange={(event) =>
+												updateListItem("latestUpdates", index, "link", event.target.value)
+											}
+										/>
+									</label>
+									<label className="admin-checkbox">
+										<input
+											type="checkbox"
+											checked={item.isPublished !== false}
+											onChange={(event) =>
+												updateListItem("latestUpdates", index, "isPublished", event.target.checked)
+											}
+										/>
+										게시
+									</label>
+									<button
+										type="button"
+										className="danger"
+										onClick={() => requestDelete("latestUpdates", index)}>
+										삭제
+									</button>
 								</div>
 							))}
-							<button type="button" onClick={() => addListItem("latestUpdates")}>소식 추가</button>
+							<button type="button" onClick={() => addListItem("latestUpdates")}>
+								소식 추가
+							</button>
 						</div>
 					) : null}
 
@@ -562,7 +708,9 @@ function App() {
 								<div
 									key={eventRowIds[index]}
 									className={`admin-item-card ${
-										dragTarget?.list === "upcomingEvents" && dragTarget.index === index ? "is-dragging" : ""
+										dragTarget?.list === "upcomingEvents" && dragTarget.index === index
+											? "is-dragging"
+											: ""
 									}`}
 									draggable
 									onDragStart={() => setDragTarget({ list: "upcomingEvents", index })}
@@ -572,20 +720,89 @@ function App() {
 									<div className="drag-tools">
 										<span className="drag-handle">드래그해서 순서 변경</span>
 										<div className="order-buttons">
-											<button type="button" onClick={() => moveItemByButtons("upcomingEvents", index, "up")}>위로</button>
-											<button type="button" onClick={() => moveItemByButtons("upcomingEvents", index, "down")}>아래로</button>
+											<button
+												type="button"
+												onClick={() => moveItemByButtons("upcomingEvents", index, "up")}>
+												위로
+											</button>
+											<button
+												type="button"
+												onClick={() => moveItemByButtons("upcomingEvents", index, "down")}>
+												아래로
+											</button>
 										</div>
 									</div>
-									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("upcomingEvents", index, "title", event.target.value)} /></label>
-									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("upcomingEvents", index, "date", event.target.value)} /></label>
-									<label>요약<textarea rows={2} value={item.summary || ""} onChange={(event) => updateListItem("upcomingEvents", index, "summary", event.target.value)} /></label>
-									<label>이미지 URL<input type="text" value={item.imageUrl || ""} onChange={(event) => updateListItem("upcomingEvents", index, "imageUrl", event.target.value)} /></label>
-									<label>링크 URL<input type="text" value={item.link || ""} onChange={(event) => updateListItem("upcomingEvents", index, "link", event.target.value)} /></label>
-									<label className="admin-checkbox"><input type="checkbox" checked={item.isPublished !== false} onChange={(event) => updateListItem("upcomingEvents", index, "isPublished", event.target.checked)} />게시</label>
-									<button type="button" className="danger" onClick={() => requestDelete("upcomingEvents", index)}>삭제</button>
+									<label>
+										제목
+										<input
+											type="text"
+											value={item.title}
+											onChange={(event) =>
+												updateListItem("upcomingEvents", index, "title", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										날짜
+										<input
+											type="text"
+											value={item.date}
+											onChange={(event) =>
+												updateListItem("upcomingEvents", index, "date", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										요약
+										<textarea
+											rows={2}
+											value={item.summary || ""}
+											onChange={(event) =>
+												updateListItem("upcomingEvents", index, "summary", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										이미지 URL
+										<input
+											type="text"
+											value={item.imageUrl || ""}
+											onChange={(event) =>
+												updateListItem("upcomingEvents", index, "imageUrl", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										링크 URL
+										<input
+											type="text"
+											value={item.link || ""}
+											onChange={(event) =>
+												updateListItem("upcomingEvents", index, "link", event.target.value)
+											}
+										/>
+									</label>
+									<label className="admin-checkbox">
+										<input
+											type="checkbox"
+											checked={item.isPublished !== false}
+											onChange={(event) =>
+												updateListItem("upcomingEvents", index, "isPublished", event.target.checked)
+											}
+										/>
+										게시
+									</label>
+									<button
+										type="button"
+										className="danger"
+										onClick={() => requestDelete("upcomingEvents", index)}>
+										삭제
+									</button>
 								</div>
 							))}
-							<button type="button" onClick={() => addListItem("upcomingEvents")}>일정 추가</button>
+							<button type="button" onClick={() => addListItem("upcomingEvents")}>
+								일정 추가
+							</button>
 						</div>
 					) : null}
 
@@ -595,7 +812,9 @@ function App() {
 								<div
 									key={goodsRowIds[index]}
 									className={`admin-item-card ${
-										dragTarget?.list === "goodsUpdates" && dragTarget.index === index ? "is-dragging" : ""
+										dragTarget?.list === "goodsUpdates" && dragTarget.index === index
+											? "is-dragging"
+											: ""
 									}`}
 									draggable
 									onDragStart={() => setDragTarget({ list: "goodsUpdates", index })}
@@ -605,20 +824,89 @@ function App() {
 									<div className="drag-tools">
 										<span className="drag-handle">드래그해서 순서 변경</span>
 										<div className="order-buttons">
-											<button type="button" onClick={() => moveItemByButtons("goodsUpdates", index, "up")}>위로</button>
-											<button type="button" onClick={() => moveItemByButtons("goodsUpdates", index, "down")}>아래로</button>
+											<button
+												type="button"
+												onClick={() => moveItemByButtons("goodsUpdates", index, "up")}>
+												위로
+											</button>
+											<button
+												type="button"
+												onClick={() => moveItemByButtons("goodsUpdates", index, "down")}>
+												아래로
+											</button>
 										</div>
 									</div>
-									<label>제목<input type="text" value={item.title} onChange={(event) => updateListItem("goodsUpdates", index, "title", event.target.value)} /></label>
-									<label>날짜<input type="text" value={item.date} onChange={(event) => updateListItem("goodsUpdates", index, "date", event.target.value)} /></label>
-									<label>요약<textarea rows={2} value={item.summary || ""} onChange={(event) => updateListItem("goodsUpdates", index, "summary", event.target.value)} /></label>
-									<label>이미지 URL<input type="text" value={item.imageUrl || ""} onChange={(event) => updateListItem("goodsUpdates", index, "imageUrl", event.target.value)} /></label>
-									<label>링크 URL<input type="text" value={item.link || ""} onChange={(event) => updateListItem("goodsUpdates", index, "link", event.target.value)} /></label>
-									<label className="admin-checkbox"><input type="checkbox" checked={item.isPublished !== false} onChange={(event) => updateListItem("goodsUpdates", index, "isPublished", event.target.checked)} />게시</label>
-									<button type="button" className="danger" onClick={() => requestDelete("goodsUpdates", index)}>삭제</button>
+									<label>
+										제목
+										<input
+											type="text"
+											value={item.title}
+											onChange={(event) =>
+												updateListItem("goodsUpdates", index, "title", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										날짜
+										<input
+											type="text"
+											value={item.date}
+											onChange={(event) =>
+												updateListItem("goodsUpdates", index, "date", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										요약
+										<textarea
+											rows={2}
+											value={item.summary || ""}
+											onChange={(event) =>
+												updateListItem("goodsUpdates", index, "summary", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										이미지 URL
+										<input
+											type="text"
+											value={item.imageUrl || ""}
+											onChange={(event) =>
+												updateListItem("goodsUpdates", index, "imageUrl", event.target.value)
+											}
+										/>
+									</label>
+									<label>
+										링크 URL
+										<input
+											type="text"
+											value={item.link || ""}
+											onChange={(event) =>
+												updateListItem("goodsUpdates", index, "link", event.target.value)
+											}
+										/>
+									</label>
+									<label className="admin-checkbox">
+										<input
+											type="checkbox"
+											checked={item.isPublished !== false}
+											onChange={(event) =>
+												updateListItem("goodsUpdates", index, "isPublished", event.target.checked)
+											}
+										/>
+										게시
+									</label>
+									<button
+										type="button"
+										className="danger"
+										onClick={() => requestDelete("goodsUpdates", index)}>
+										삭제
+									</button>
 								</div>
 							))}
-							<button type="button" onClick={() => addListItem("goodsUpdates")}>굿즈 소식 추가</button>
+							<button type="button" onClick={() => addListItem("goodsUpdates")}>
+								굿즈 소식 추가
+							</button>
 						</div>
 					) : null}
 
@@ -651,18 +939,25 @@ function App() {
 	}
 
 	const isEncyclopediaPage = currentPath === "/encyclopedia";
-	const isListPage = currentPath === "/updates" || currentPath === "/schedule" || currentPath === "/goods";
+	const isListPage =
+		currentPath === "/updates" || currentPath === "/schedule" || currentPath === "/goods";
 	const listMeta = isListPage ? getListMeta(currentPath as ListPageKind) : null;
-	const latestPreviewItems = portalContent.latestUpdates.filter((item) => item.isPublished !== false).slice(0, 3);
-	const eventPreviewItems = portalContent.upcomingEvents.filter((item) => item.isPublished !== false).slice(0, 3);
-	const goodsPreviewItems = portalContent.goodsUpdates.filter((item) => item.isPublished !== false).slice(0, 3);
+	const latestPreviewItems = portalContent.latestUpdates
+		.filter((item) => item.isPublished !== false)
+		.slice(0, 3);
+	const eventPreviewItems = portalContent.upcomingEvents
+		.filter((item) => item.isPublished !== false)
+		.slice(0, 3);
+	const goodsPreviewItems = portalContent.goodsUpdates
+		.filter((item) => item.isPublished !== false)
+		.slice(0, 3);
 
 	return (
 		<div className="encyclopedia-page">
 			<header className="global-header">
 				<div className="global-header__title">
-					<p>DIGIMON FAN PORTAL</p>
-					<h1>디지몬 종합 팬페이지</h1>
+					<p>디지몬 종합 팬페이지</p>
+					<h1>BOLERO TIME</h1>
 				</div>
 				<nav aria-label="페이지 섹션 이동">
 					<ul>
@@ -697,7 +992,9 @@ function App() {
 						{listMeta.items.length ? (
 							listMeta.items.map((item, index) => (
 								<article className="list-grid-card" key={`${item.title}-${item.date}-${index}`}>
-									{item.imageUrl ? <img src={item.imageUrl} alt={item.title} loading="lazy" /> : null}
+									{item.imageUrl ? (
+										<img src={item.imageUrl} alt={item.title} loading="lazy" />
+									) : null}
 									<h3>{item.title}</h3>
 									<p>{item.summary || "요약이 아직 등록되지 않았습니다."}</p>
 									<span>{item.date}</span>
@@ -769,15 +1066,27 @@ function App() {
 										<ul className="meta-list">
 											<li>
 												<strong>레벨</strong>
-												<span>{digimon.levels.map((item) => translateLabel(item.level, LEVEL_KO_MAP)).join(", ") || "-"}</span>
+												<span>
+													{digimon.levels
+														.map((item) => translateLabel(item.level, LEVEL_KO_MAP))
+														.join(", ") || "-"}
+												</span>
 											</li>
 											<li>
 												<strong>타입</strong>
-												<span>{digimon.types.map((item) => translateLabel(item.type, TYPE_KO_MAP)).join(", ") || "-"}</span>
+												<span>
+													{digimon.types
+														.map((item) => translateLabel(item.type, TYPE_KO_MAP))
+														.join(", ") || "-"}
+												</span>
 											</li>
 											<li>
 												<strong>속성</strong>
-												<span>{digimon.attributes.map((item) => translateLabel(item.attribute, ATTRIBUTE_KO_MAP)).join(", ") || "-"}</span>
+												<span>
+													{digimon.attributes
+														.map((item) => translateLabel(item.attribute, ATTRIBUTE_KO_MAP))
+														.join(", ") || "-"}
+												</span>
 											</li>
 											<li>
 												<strong>첫 등장</strong>
@@ -797,7 +1106,11 @@ function App() {
 									{digimon.priorEvolutions?.length ? (
 										digimon.priorEvolutions.slice(0, 8).map((item) => (
 											<li key={`${item.id}-${item.digimon}`}>
-												<img src={item.image} alt={translateDigimonName(koNamesMap, item.id, item.digimon)} loading="lazy" />
+												<img
+													src={item.image}
+													alt={translateDigimonName(koNamesMap, item.id, item.digimon)}
+													loading="lazy"
+												/>
 												<div>
 													<button type="button" onClick={() => handleEvolutionClick(item.id)}>
 														{translateDigimonName(koNamesMap, item.id, item.digimon)}
@@ -816,7 +1129,11 @@ function App() {
 									{digimon.nextEvolutions?.length ? (
 										digimon.nextEvolutions.slice(0, 8).map((item) => (
 											<li key={`${item.id}-${item.digimon}`}>
-												<img src={item.image} alt={translateDigimonName(koNamesMap, item.id, item.digimon)} loading="lazy" />
+												<img
+													src={item.image}
+													alt={translateDigimonName(koNamesMap, item.id, item.digimon)}
+													loading="lazy"
+												/>
 												<div>
 													<button type="button" onClick={() => handleEvolutionClick(item.id)}>
 														{translateDigimonName(koNamesMap, item.id, item.digimon)}
@@ -837,7 +1154,9 @@ function App() {
 			{!isListPage && !isEncyclopediaPage ? (
 				<>
 					<section className="portal-hero" id="home">
-						{portalContent.hero.eyebrow || portalContent.hero.title || portalContent.hero.description ? (
+						{portalContent.hero.eyebrow ||
+						portalContent.hero.title ||
+						portalContent.hero.description ? (
 							<>
 								<p className="portal-hero__eyebrow">{portalContent.hero.eyebrow}</p>
 								<h2>{portalContent.hero.title}</h2>
@@ -860,7 +1179,9 @@ function App() {
 						<article className="portal-card">
 							<div className="portal-card__head">
 								<h3>최신 소식</h3>
-								<button type="button" onClick={() => navigateTo("/updates")}>전체보기</button>
+								<button type="button" onClick={() => navigateTo("/updates")}>
+									전체보기
+								</button>
 							</div>
 							{latestPreviewItems.length ? (
 								<ul>
@@ -878,7 +1199,9 @@ function App() {
 						<article className="portal-card">
 							<div className="portal-card__head">
 								<h3>일정</h3>
-								<button type="button" onClick={() => navigateTo("/schedule")}>전체보기</button>
+								<button type="button" onClick={() => navigateTo("/schedule")}>
+									전체보기
+								</button>
 							</div>
 							{eventPreviewItems.length ? (
 								<ul>
@@ -898,7 +1221,9 @@ function App() {
 					<section className="portal-card fan-content-card">
 						<div className="portal-card__head">
 							<h3>굿즈 소식</h3>
-							<button type="button" onClick={() => navigateTo("/goods")}>전체보기</button>
+							<button type="button" onClick={() => navigateTo("/goods")}>
+								전체보기
+							</button>
 						</div>
 						{goodsPreviewItems.length ? (
 							<div className="fan-content-grid">

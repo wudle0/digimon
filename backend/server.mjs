@@ -266,7 +266,7 @@ app.get("/api/portal-content", async (_req, res) => {
 	}
 });
 
-app.put("/api/portal-content", requireAdmin, async (req, res) => {
+const handlePortalContentSave = async (req, res) => {
 	if (!validatePortalContent(req.body)) {
 		res.status(400).json({ message: "포털 데이터 형식이 올바르지 않습니다." });
 		return;
@@ -278,7 +278,10 @@ app.put("/api/portal-content", requireAdmin, async (req, res) => {
 	} catch {
 		res.status(500).json({ message: "저장 중 오류가 발생했습니다." });
 	}
-});
+};
+
+app.put("/api/portal-content", requireAdmin, handlePortalContentSave);
+app.post("/api/portal-content", requireAdmin, handlePortalContentSave);
 
 app.get("/api/admin/hero", requireAdmin, async (_req, res) => {
 	try {
