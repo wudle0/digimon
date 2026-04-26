@@ -52,6 +52,8 @@ const fixedSections = [
 const ADMIN_ID = "admin";
 const ADMIN_PASSWORD = "dkrnahs9581";
 const ADMIN_SAVED_ID_KEY = "digimon-admin-saved-id";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
+const withApiBase = (path: string) => `${API_BASE_URL}${path}`;
 const defaultPortalContent: PortalContent = {
 	hero: {
 		eyebrow: "",
@@ -121,7 +123,7 @@ const reorderItems = <T,>(items: T[], from: number, to: number): T[] => {
 };
 
 const getPortalContent = async (): Promise<PortalContent> => {
-	const apiResponse = await fetch("/api/portal-content");
+	const apiResponse = await fetch(withApiBase("/api/portal-content"));
 	if (!apiResponse.ok) {
 		throw new Error("포털 데이터를 불러오지 못했습니다.");
 	}
@@ -302,7 +304,7 @@ function App() {
 	};
 	const handleAdminSave = async () => {
 		try {
-			const response = await fetch("/api/portal-content", {
+			const response = await fetch(withApiBase("/api/portal-content"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",

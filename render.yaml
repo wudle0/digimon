@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: digimon-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: ADMIN_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://bolero-time.pages.dev
