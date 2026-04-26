@@ -52,7 +52,8 @@ const fixedSections = [
 const ADMIN_ID = "admin";
 const ADMIN_PASSWORD = "dkrnahs9581";
 const ADMIN_SAVED_ID_KEY = "digimon-admin-saved-id";
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
+const API_BASE_URL =
+	(import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
 const withApiBase = (path: string) => `${API_BASE_URL}${path}`;
 const defaultPortalContent: PortalContent = {
 	hero: {
